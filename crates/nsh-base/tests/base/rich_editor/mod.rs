@@ -76,11 +76,19 @@ impl NodeView for TagView {
     }
 }
 
-/// Renders `aside` nodes as a 40pt label, then their content, editable.
+/// Renders `aside` nodes as a 40pt label before their editable content:
+/// to its left (`layout: "row"`, the default) or above it (`layout: "col"`).
 struct AsideView;
 
 impl NodeView for AsideView {
-    fn create(&self, cx: &NodeViewCx, _node: &Node) -> AnyElement {
+    fn create(&self, cx: &NodeViewCx, node: &Node) -> AnyElement {
+        if node.attrs().get("layout").and_then(Value::as_str) == Some("col") {
+            return view()
+                .flex_col()
+                .child(view().h(px(40.0)).child(text("Aside")))
+                .child(view().children(cx.take_content()))
+                .into_element();
+        }
         view()
             .flex_row()
             .child(view().w(px(40.0)).child(text("Aside")))
@@ -113,6 +121,9 @@ fn schema() -> Schema {
     let mut aside = NodeSpec::default();
     aside.group = Some("block".into());
     aside.content = Some("paragraph".into());
+    let mut layout = nsh_base::rich_editor::model::AttrSpec::default();
+    layout.default = Some(json!("row"));
+    aside.attrs = vec![("layout".into(), layout)];
     spec.nodes.push(("aside".into(), aside));
     Schema::new(spec).unwrap()
 }

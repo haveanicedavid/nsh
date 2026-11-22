@@ -250,11 +250,11 @@ fn a_triple_press_selects_a_block_text() {
     see(&mut app, "Sel 8-23");
 }
 
-/// A paragraph in an `aside`, whose label takes the 40pt before it: its
-/// text is 2..13.
-fn aside() -> Value {
+/// A paragraph in an `aside`, whose label takes 40pt before it (`"row"`:
+/// left; `"col"`: above): its text is 2..13.
+fn aside(layout: &str) -> Value {
     json!({"type": "doc", "content": [
-        {"type": "aside", "content": [
+        {"type": "aside", "attrs": {"layout": layout}, "content": [
             {"type": "paragraph", "content": [{"type": "text", "text": "hello world"}]}
         ]}
     ]})
@@ -262,7 +262,7 @@ fn aside() -> Value {
 
 #[test]
 fn a_press_on_what_a_node_view_shows_before_its_content_is_its_own() {
-    let mut app = start(aside());
+    let mut app = start(aside("row"));
     app.press_at("text:hello world", Point::new(px(1.0), px(1.0)))
         .unwrap();
     see(&mut app, "Sel 2-2");
@@ -272,6 +272,27 @@ fn a_press_on_what_a_node_view_shows_before_its_content_is_its_own() {
     app.press("text:Aside").unwrap();
     app.wait(Duration::from_millis(50)).unwrap();
     see(&mut app, "Sel 13-13");
+}
+
+#[test]
+fn a_press_on_what_a_column_node_view_shows_above_its_content_is_its_own() {
+    let mut app = start(aside("col"));
+    app.press_at("text:hello world", Point::new(px(1.0), px(1.0)))
+        .unwrap();
+    see(&mut app, "Sel 2-2");
+    keys(&mut app, &["end"]);
+    see(&mut app, "Sel 13-13");
+    // The label above the content is the node view's: a press there leaves the
+    // caret where it was.
+    app.press("text:Aside").unwrap();
+    app.wait(Duration::from_millis(50)).unwrap();
+    see(&mut app, "Sel 13-13");
+    // A press inside the editable paragraph below the header still places the
+    // caret.
+    app.wait(Duration::from_millis(600)).unwrap();
+    app.press_at("text:hello world", Point::new(px(1.0), px(1.0)))
+        .unwrap();
+    see(&mut app, "Sel 2-2");
 }
 
 #[test]

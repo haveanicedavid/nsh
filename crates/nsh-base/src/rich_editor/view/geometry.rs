@@ -165,17 +165,18 @@ pub(crate) enum Hit {
 
 impl Geometry {
     /// Whether the content point `at` is in a block's box before where its
-    /// children start: on a task item's checkbox or what a node view shows
-    /// before its content, or under it.
+    /// children start (left of or above the holder): on a task item's checkbox
+    /// or what a node view shows before its content.
     pub(crate) fn before_holder(&self, at: Point<Points>) -> bool {
         self.insets.iter().any(|(id, inset)| {
             let (Some(origin), Some((_, frame))) = (self.origin(*id), self.frames.get(id)) else {
                 return false;
             };
             at.x >= origin.x
-                && at.x < origin.x + inset.x
+                && at.x < origin.x + frame.size.width
                 && at.y >= origin.y
                 && at.y < origin.y + frame.size.height
+                && (at.x < origin.x + inset.x || at.y < origin.y + inset.y)
         })
     }
 
@@ -654,6 +655,23 @@ mod tests {
         // The item's text, the margin beside it, and a block without a
         // holder are not.
         assert!(!on(34.0, 50.0) && !on(9.0, 50.0) && !on(20.0, 70.0));
+    }
+
+    /// A header above a node view's content is also before its holder: a press
+    /// there is the node view's, while one in the content below or outside the
+    /// block's width is not.
+    #[test]
+    fn a_point_above_a_holder_is_before_it() {
+        let mut geo = Geometry::default();
+        let frame = Bounds::new(
+            Point::new(px(10.0), px(40.0)),
+            Size::new(px(100.0), px(60.0)),
+        );
+        geo.frames.insert(1, (Some(DOC), frame));
+        geo.insets.insert(1, Point::new(px(0.0), px(40.0)));
+        let on = |x: f32, y: f32| geo.before_holder(Point::new(px(x), px(y)));
+        assert!(on(10.0, 40.0) && on(109.0, 79.0));
+        assert!(!on(50.0, 80.0) && !on(9.0, 50.0) && !on(110.0, 50.0) && !on(50.0, 39.0));
     }
 
     fn map() -> InlineMap {
